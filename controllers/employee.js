@@ -5,7 +5,7 @@ const { responseSuccess, responseError } = require('../utils/responseHandler');
 require('dotenv').config();
 
 const register = async (req, res) => {
-    const { name, position, email, password } = req.body;
+    const { name, position, email, password, isAdmin } = req.body;
 
     try {
         // Check if the email already exists
@@ -19,7 +19,8 @@ const register = async (req, res) => {
             name,
             position,
             email,
-            password
+            password,
+            isAdmin
         });
 
         // Save the employee to the database
