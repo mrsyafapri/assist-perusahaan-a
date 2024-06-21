@@ -4,9 +4,11 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 
+const employeeRoutes = require('./routes/employee');
+
 const app = express();
 const router = express.Router();
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -26,6 +28,8 @@ database.once("connected", () => {
 router.get("/", (req, res) => {
     res.send("Welcome to the Perusahaan A API");
 });
+
+router.use('/employee', employeeRoutes);
 
 app.use("/api/v1", router);
 app.listen(port, () => {
