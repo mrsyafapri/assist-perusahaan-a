@@ -15,4 +15,12 @@ const responseError = (res, message, status) => {
     return res.status(status).json(response);
 };
 
-module.exports = { responseSuccess, responseError };
+const handleAxiosError = (error, res) => {
+    if (error.response) {
+        responseError(res, error.response.data.message, error.response.status);
+    } else {
+        responseError(res, 'Internal server error', 500);
+    }
+};
+
+module.exports = { responseSuccess, responseError, handleAxiosError };
