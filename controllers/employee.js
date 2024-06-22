@@ -1,31 +1,24 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const Employee = require('../models/employee');
-const { responseSuccess, responseError } = require('../utils/responseHandler');
+const axios = require('axios');
 require('dotenv').config();
+
+const Employee = require('../models/employee');
+const { responseSuccess, responseError, handleAxiosError } = require('../utils/responseHandler');
+
+const { ABSENSI_SERVICE, SECRET_TOKEN, JWT_EXPIRES_IN } = process.env;
 
 const register = async (req, res) => {
     const { name, position, email, password, isAdmin } = req.body;
 
     try {
-        // Check if the email already exists
         const existingEmployee = await Employee.findOne({ email });
         if (existingEmployee) {
             return responseError(res, 'Email already exists', 400);
         }
 
-        // Create the new employee
-        const employee = new Employee({
-            name,
-            position,
-            email,
-            password,
-            isAdmin
-        });
-
-        // Save the employee to the database
+        const employee = new Employee({ name, position, email, password, isAdmin });
         const savedEmployee = await employee.save();
-
         responseSuccess(res, savedEmployee, 'Employee registered successfully', 201);
     } catch (err) {
         responseError(res, err.message, 400);
@@ -34,18 +27,143 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
     const { email, password } = req.body;
-    const employee = await Employee.findOne({ email });
-    if (employee && await bcrypt.compare(password, employee.password)) {
-        const token = jwt.sign({ id: employee._id }, process.env.TOKEN_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN
+
+    try {
+        const employee = await Employee.findOne({ email }).select('+password');
+        if (employee && await bcrypt.compare(password, employee.password)) {
+            const expiresIn = JWT_EXPIRES_IN;
+            const token = jwt.sign({ id: employee._id }, SECRET_TOKEN, { expiresIn });
+            responseSuccess(res, { token, expiresIn }, 'Logged in successfully', 200);
+        } else {
+            responseError(res, 'Incorrect email or password', 400);
+        }
+    } catch (err) {
+        responseError(res, 'Internal server error', 500);
+    }
+};
+
+const getEmployee = async (req, res) => {
+    try {
+        const employee = await Employee.findById(req.employee.id).select('-password');
+        if (!employee) {
+            return responseError(res, 'Employee not found', 404);
+        }
+        responseSuccess(res, employee, 'Employee details fetched successfully', 200);
+    } catch (err) {
+        responseError(res, 'Internal server error', 500);
+    }
+};
+
+const updateEmployee = async (req, res) => {
+    const updates = Object.keys(req.body);
+    const allowedUpdates = ['name', 'email', 'position', 'password', 'isAdmin'];
+    const isValidOperation = updates.every(update => allowedUpdates.includes(update));
+
+    if (!isValidOperation) {
+        return responseError(res, 'Invalid updates', 400);
+    }
+
+    try {
+        const employee = await Employee.findById(req.employee.id);
+        if (!employee) {
+            return responseError(res, 'Employee not found', 404);
+        }
+
+        updates.forEach(update => {
+            employee[update] = req.body[update];
         });
-        responseSuccess(res, { token }, 'Logged in successfully', 200);
-    } else {
-        return responseError(res, 'Incorrect email or password', 400);
+
+        await employee.save();
+        responseSuccess(res, employee, 'Employee updated successfully', 200);
+    } catch (err) {
+        responseError(res, err.message, 400);
+    }
+};
+
+const deleteEmployee = async (req, res) => {
+    try {
+        const employee = await Employee.findByIdAndDelete(req.employee.id);
+        if (!employee) {
+            return responseError(res, 'Employee not found', 404);
+        }
+        responseSuccess(res, null, 'Employee deleted successfully', 204);
+    } catch (err) {
+        responseError(res, 'Internal server error', 500);
+    }
+};
+
+const markAttendance = async (req, res) => {
+    const { date, status } = req.body;
+    const authToken = req.headers.authorization.split(' ')[1];
+
+    try {
+        const response = await axios.post(`${ABSENSI_SERVICE}/mark`, {
+            date, status
+        }, {
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+        responseSuccess(res, response.data.data, response.data.message, response.status);
+    } catch (error) {
+        handleAxiosError(error, res);
+    }
+};
+
+const requestLeave = async (req, res) => {
+    const { startDate, endDate, reason } = req.body;
+    const authToken = req.headers.authorization.split(' ')[1];
+
+    try {
+        const response = await axios.post(`${ABSENSI_SERVICE}/leave`, {
+            startDate, endDate, reason
+        }, {
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+        responseSuccess(res, response.data.data, response.data.message, response.status);
+    } catch (error) {
+        handleAxiosError(error, res);
+    }
+};
+
+const statusLeave = async (req, res) => {
+    const { status } = req.body;
+    const { id: leaveId } = req.params;
+    const authToken = req.headers.authorization.split(' ')[1];
+
+    try {
+        const response = await axios.put(`${ABSENSI_SERVICE}/leave/${leaveId}/status`, {
+            status
+        }, {
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+        responseSuccess(res, response.data.data, response.data.message, response.status);
+    } catch (error) {
+        handleAxiosError(error, res);
+    }
+};
+
+const generateReport = async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const authToken = req.headers.authorization.split(' ')[1];
+
+    try {
+        const response = await axios.get(`${ABSENSI_SERVICE}/report`, {
+            params: { startDate, endDate },
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+        responseSuccess(res, response.data.data, response.data.message, response.status);
+    } catch (error) {
+        handleAxiosError(error, res);
     }
 };
 
 module.exports = {
     register,
-    login
+    login,
+    getEmployee,
+    updateEmployee,
+    deleteEmployee,
+    markAttendance,
+    requestLeave,
+    statusLeave,
+    generateReport
 };
