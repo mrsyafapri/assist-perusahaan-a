@@ -21,7 +21,7 @@ const register = async (req, res) => {
         const savedEmployee = await employee.save();
         responseSuccess(res, savedEmployee, 'Employee registered successfully', 201);
     } catch (err) {
-        responseError(res, err.message, 400);
+        responseError(res, "Invalid data", 400);
     }
 };
 
@@ -60,7 +60,7 @@ const updateEmployee = async (req, res) => {
     const isValidOperation = updates.every(update => allowedUpdates.includes(update));
 
     if (!isValidOperation) {
-        return responseError(res, 'Invalid updates', 400);
+        return responseError(res, 'Invalid data', 400);
     }
 
     try {
@@ -76,7 +76,7 @@ const updateEmployee = async (req, res) => {
         await employee.save();
         responseSuccess(res, employee, 'Employee updated successfully', 200);
     } catch (err) {
-        responseError(res, err.message, 400);
+        responseError(res, "Invalid data", 400);
     }
 };
 

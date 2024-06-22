@@ -2,8 +2,10 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const swaggerUi = require('swagger-ui-express');
 require("dotenv").config();
 
+const swaggerDocs = require('./swagger');
 const employeeRoutes = require('./routes/employee');
 
 const app = express();
@@ -32,6 +34,8 @@ router.get("/", (req, res) => {
 router.use('/employee', employeeRoutes);
 
 app.use("/api/v1", router);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.listen(port, () => {
     console.log(`Perusahaan A API: listening on port ${port}`);
+    console.log(`API documentation available at http://localhost:${port}/api-docs`);
 });
