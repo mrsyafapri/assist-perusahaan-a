@@ -554,6 +554,7 @@ router.post("/mark", auth, markAttendance);
  *                 format: date
  *               reason:
  *                 type: string
+ *                 example: "Liburan Keluarga"
  *     responses:
  *       201:
  *         description: Leave request submitted successfully
