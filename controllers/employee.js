@@ -12,7 +12,7 @@ const register = async (req, res) => {
     const { name, position, email, password, isAdmin } = req.body;
 
     try {
-        const existingEmployee = await Employee.findOne({ email });
+        const existingEmployee = await Employee.exists({ email });
         if (existingEmployee) {
             return responseError(res, 'Email already exists', 400);
         }
@@ -64,16 +64,10 @@ const updateEmployee = async (req, res) => {
     }
 
     try {
-        const employee = await Employee.findById(req.employee.id);
+        const employee = await Employee.findByIdAndUpdate(req.employee.id, req.body, { new: true, runValidators: true });
         if (!employee) {
             return responseError(res, 'Employee not found', 404);
         }
-
-        updates.forEach(update => {
-            employee[update] = req.body[update];
-        });
-
-        await employee.save();
         responseSuccess(res, employee, 'Employee updated successfully', 200);
     } catch (err) {
         responseError(res, "Invalid data", 400);
